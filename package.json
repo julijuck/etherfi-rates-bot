@@ -1,0 +1,15 @@
+{
+  "name": "etherfi-rates-bot",
+  "version": "1.0.0",
+  "description": "Alerta por email cuando la tasa de borrow de ether.fi Cash supera (o se acerca) a la tasa de earn",
+  "private": true,
+  "type": "commonjs",
+  "main": "src/checkRates.js",
+  "scripts": {
+    "check": "node src/checkRates.js"
+  },
+  "dependencies": {
+    "nodemailer": "^9.0.3",
+    "playwright": "^1.47.0"
+  }
+}
