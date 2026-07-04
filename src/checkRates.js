@@ -1,6 +1,8 @@
 require('dotenv').config();
 const { scrapeRate } = require('./scrapeRate');
 const { sendAlertEmail } = require('./sendAlertEmail');
+const { appendHistory, lastNDays } = require('./history');
+const { formatWeeklySummary } = require('./weeklySummary');
 
 const EARN_URL = 'https://www.ether.fi/app/cash/earn';
 // The "USD" vault card is the user's actual position (the big one, ~$90M
@@ -39,6 +41,13 @@ async function main() {
   console.log(`Spread:      ${spread.toFixed(2)}%`);
   console.log(`Umbral:      ${SPREAD_THRESHOLD}%`);
 
+  const history = appendHistory({
+    timestamp: new Date().toISOString(),
+    earnRate,
+    borrowRate,
+    spread,
+  });
+
   if (spread < SPREAD_THRESHOLD) {
     const subject =
       spread < 0
@@ -57,6 +66,12 @@ ${BORROW_URL}`;
     console.log('Alerta enviada por email.');
   } else {
     console.log('Todo OK, no se envía alerta.');
+  }
+
+  const isSunday = new Date().getDay() === 0;
+  if (isSunday) {
+    await sendAlertEmail(formatWeeklySummary(lastNDays(history, 7)));
+    console.log('Resumen semanal enviado por email.');
   }
 }
 
