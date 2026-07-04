@@ -80,6 +80,9 @@ async function scrapeRate(url, { label } = {}) {
       );
 
     if (candidates.length === 0) {
+      console.error(`[${label || url}] --- page text (no candidates found) ---`);
+      console.error(bodyText.slice(0, 3000));
+      console.error(`[${label || url}] --- end page text ---`);
       throw new Error(
         `[${label || url}] No se encontró ningún porcentaje plausible en la página.`
       );
