@@ -9,6 +9,10 @@ on:
         description: 'Loguear el texto completo de cada página (para diagnosticar)'
         type: boolean
         default: false
+      debug_url:
+        description: 'Si se completa, solo hace debug de esta URL (no corre el check normal)'
+        type: string
+        default: ''
 
 jobs:
   check-rates:
@@ -26,7 +30,14 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
+      - name: Debug URL
+        if: ${{ inputs.debug_url != '' }}
+        env:
+          DEBUG_URL: ${{ inputs.debug_url }}
+        run: node src/debugUrl.js
+
       - name: Check rates
+        if: ${{ inputs.debug_url == '' }}
         env:
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
