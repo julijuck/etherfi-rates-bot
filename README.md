@@ -2,12 +2,14 @@
 
 Bot que chequea diariamente las tasas de ether.fi Cash:
 
-- **Earn rate**: tasa que paga el colateral (Liquid USD vault) — https://www.ether.fi/app/cash/earn
-- **Borrow rate**: tasa de repago del préstamo contra ese colateral — https://www.ether.fi/app/cash/safe
+- **Earn rate**: APY del vault "Reserve" en https://www.ether.fi/app/cash/earn (página pública, sin login)
+- **Borrow rate**: tasa de interés del préstamo contra el colateral. La app (`/cash/safe`) solo la muestra logueado con wallet, así que en cambio se lee del [artículo público del Help Center](https://help.ether.fi/en/articles/326983-understanding-your-cash-card-borrow-mode-vs-direct-pay-mode) que la documenta como una tasa fija ("Annual interest rate: 4% APY")
 
-Si el spread (`earn - borrow`) cae por debajo de un umbral (default `0.25`), envía un email de alerta. Si alguna de las dos páginas no se puede leer (por ejemplo porque ether.fi cambió el diseño), también avisa por email en vez de fallar en silencio.
+Si el spread (`earn - borrow`) cae por debajo de un umbral (default `0.25`), envía un email de alerta. Si alguna de las dos páginas no se puede leer (por ejemplo porque ether.fi cambió el diseño o el texto del vault/artículo), también avisa por email en vez de fallar en silencio.
 
-Como ether.fi no expone una API pública estable para estas tasas, el bot usa [Playwright](https://playwright.dev/) para renderizar las páginas con un navegador headless y leer el porcentaje del texto visible, igual que lo haría una persona.
+Como ether.fi no expone una API pública estable para estas tasas, el bot usa [Playwright](https://playwright.dev/) para renderizar las páginas con un navegador headless y leer el porcentaje del texto visible, igual que lo haría una persona. La extracción busca el número más cercano a un texto ancla (`nearText`, ej. el nombre del vault o "annual interest rate") para evitar confundirse con otros porcentajes de la misma página.
+
+Si en el futuro cambiás de vault (hoy es "Reserve"), actualizá `EARN_VAULT_NAME` en `src/checkRates.js`.
 
 ## Setup
 
