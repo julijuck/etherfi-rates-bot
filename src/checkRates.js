@@ -1,3 +1,4 @@
+require('dotenv').config();
 const { scrapeRate } = require('./scrapeRate');
 const { sendAlertEmail } = require('./sendAlertEmail');
 

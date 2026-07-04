@@ -1,8 +1,11 @@
 name: Check ether.fi Cash rates
 
+# No schedule trigger: GitHub Actions runners use US datacenter IPs, and
+# ether.fi's /cash/earn page substitutes a different, lower-yield vault
+# ("Reserve") for the user's real "USD" vault when viewed from a
+# US-restricted region. The real check runs locally instead (see README).
+# This workflow stays available for manual debugging only.
 on:
-  schedule:
-    - cron: '0 13 * * *'
   workflow_dispatch:
     inputs:
       debug_scrape:
