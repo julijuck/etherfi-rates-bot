@@ -7,6 +7,8 @@ Bot que chequea diariamente las tasas de ether.fi Cash:
 
 Si el spread (`earn - borrow`) cae por debajo de un umbral (default `0.25`), envía un email de alerta. Si alguna de las dos páginas no se puede leer (por ejemplo porque ether.fi cambió el diseño o el texto del vault/artículo), también avisa por email en vez de fallar en silencio.
 
+Cada chequeo exitoso se guarda en `data/history.json` (local, no se commitea). Los domingos, además del chequeo normal, se envía un email con el resumen de earn/borrow/spread de los últimos 7 días.
+
 Como ether.fi no expone una API pública estable para estas tasas, el bot usa [Playwright](https://playwright.dev/) para renderizar las páginas con un navegador headless y leer el porcentaje del texto visible, igual que lo haría una persona. La extracción busca el número que aparece después de un texto ancla (`nearText`, ej. el nombre del vault o "annual interest rate") para evitar confundirse con otros porcentajes de la misma página.
 
 Si en el futuro cambiás de vault (hoy es "USD"), actualizá `EARN_VAULT_PATTERN` en `src/checkRates.js`.

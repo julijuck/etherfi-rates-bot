@@ -16,6 +16,10 @@ on:
         description: 'Si se completa, solo hace debug de esta URL (no corre el check normal)'
         type: string
         default: ''
+      spread_threshold:
+        description: 'Override de SPREAD_THRESHOLD (ej. 10 para forzar un email de prueba)'
+        type: string
+        default: '0.25'
 
 jobs:
   check-rates:
@@ -44,6 +48,6 @@ jobs:
         env:
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
-          SPREAD_THRESHOLD: '0.25'
+          SPREAD_THRESHOLD: ${{ inputs.spread_threshold }}
           DEBUG_SCRAPE: ${{ inputs.debug_scrape && '1' || '' }}
         run: npm run check
