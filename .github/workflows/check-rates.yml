@@ -1,9 +1,21 @@
 name: Check ether.fi Cash rates
 
+# No schedule trigger: GitHub Actions runners use US datacenter IPs, and
+# ether.fi's /cash/earn page substitutes a different, lower-yield vault
+# ("Reserve") for the user's real "USD" vault when viewed from a
+# US-restricted region. The real check runs locally instead (see README).
+# This workflow stays available for manual debugging only.
 on:
-  schedule:
-    - cron: '0 13 * * *'
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      debug_scrape:
+        description: 'Loguear el texto completo de cada página (para diagnosticar)'
+        type: boolean
+        default: false
+      debug_url:
+        description: 'Si se completa, solo hace debug de esta URL (no corre el check normal)'
+        type: string
+        default: ''
 
 jobs:
   check-rates:
@@ -21,9 +33,17 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
+      - name: Debug URL
+        if: ${{ inputs.debug_url != '' }}
+        env:
+          DEBUG_URL: ${{ inputs.debug_url }}
+        run: node src/debugUrl.js
+
       - name: Check rates
+        if: ${{ inputs.debug_url == '' }}
         env:
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           SPREAD_THRESHOLD: '0.25'
+          DEBUG_SCRAPE: ${{ inputs.debug_scrape && '1' || '' }}
         run: npm run check
