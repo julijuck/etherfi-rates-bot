@@ -10,6 +10,10 @@ function parsePercent(text) {
 }
 
 function findAllIndices(haystack, needle) {
+  if (needle instanceof RegExp) {
+    const re = new RegExp(needle.source, needle.flags.includes('g') ? needle.flags : needle.flags + 'g');
+    return [...haystack.matchAll(re)].map((m) => m.index);
+  }
   const indices = [];
   let idx = haystack.indexOf(needle);
   while (idx !== -1) {
@@ -46,6 +50,14 @@ async function scrapeRate(url, { label, nearText = 'apy' } = {}) {
     await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
     await page.waitForTimeout(3000);
 
+    // Some vault cards render lazily as they scroll into view, so scroll
+    // through the page before reading the text to make sure they're all there.
+    for (let i = 0; i < 6; i++) {
+      await page.mouse.wheel(0, 1500);
+      await page.waitForTimeout(500);
+    }
+    await page.waitForTimeout(1500);
+
     const bodyText = await page.innerText('body');
 
     if (process.env.DEBUG_SCRAPE) {
@@ -57,15 +69,22 @@ async function scrapeRate(url, { label, nearText = 'apy' } = {}) {
     const percentRegex = /(\d+(?:[.,]\d+)?)\s*%/g;
     const matches = [...bodyText.matchAll(percentRegex)];
 
-    const anchorIndices = findAllIndices(bodyText.toLowerCase(), nearText.toLowerCase());
+    const anchorIndices =
+      nearText instanceof RegExp
+        ? findAllIndices(bodyText, nearText)
+        : findAllIndices(bodyText.toLowerCase(), nearText.toLowerCase());
 
     const candidates = matches
       .map((m) => {
         const value = parsePercent(m[1]);
-        const distance =
-          anchorIndices.length === 0
-            ? null
-            : Math.min(...anchorIndices.map((i) => Math.abs(i - m.index)));
+        // Only consider anchors that precede the percentage: on ether.fi's
+        // pages the label/name always comes before its value ("<name> ...
+        // <rate>%APY"), so a forward-only distance avoids accidentally
+        // matching the trailing rate of the *previous* card/section.
+        const forwardDistances = anchorIndices
+          .map((i) => m.index - i)
+          .filter((d) => d >= 0);
+        const distance = forwardDistances.length === 0 ? null : Math.min(...forwardDistances);
         return {
           value,
           index: m.index,

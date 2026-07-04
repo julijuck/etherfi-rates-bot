@@ -2,7 +2,10 @@ const { scrapeRate } = require('./scrapeRate');
 const { sendAlertEmail } = require('./sendAlertEmail');
 
 const EARN_URL = 'https://www.ether.fi/app/cash/earn';
-const EARN_VAULT_NAME = 'Reserve';
+// The "USD" vault card is the user's actual position (the big one, ~$90M
+// deposits). Must not match the "USD RWAs" card, which is a different,
+// unrelated vault that also contains the substring "USD".
+const EARN_VAULT_PATTERN = /\bUSD\b(?!\s*RWAs)/i;
 // The app only shows the borrow rate once a wallet is connected, but
 // ether.fi publishes it as a fixed, public number in their help center.
 const BORROW_URL =
@@ -15,7 +18,7 @@ async function main() {
 
   try {
     [earnRate, borrowRate] = await Promise.all([
-      scrapeRate(EARN_URL, { label: 'earn', nearText: EARN_VAULT_NAME }),
+      scrapeRate(EARN_URL, { label: 'earn', nearText: EARN_VAULT_PATTERN }),
       scrapeRate(BORROW_URL, { label: 'borrow', nearText: 'annual interest rate' }),
     ]);
   } catch (err) {
