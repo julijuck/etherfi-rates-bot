@@ -47,7 +47,12 @@ async function scrapeRate(url, { label, nearText = 'apy' } = {}) {
       userAgent:
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36',
     });
-    await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
+    // 'networkidle' can hang indefinitely on pages with recurring background
+    // network activity (price polling, analytics, websockets, etc.) since it
+    // requires a full 500ms with zero in-flight requests. 'domcontentloaded'
+    // fires once, deterministically, and the explicit waits below already
+    // carry the real "let the SPA hydrate" burden.
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 90000 });
     await page.waitForTimeout(3000);
 
     // Some vault cards render lazily as they scroll into view, so scroll

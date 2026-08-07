@@ -5,7 +5,7 @@ Bot que chequea diariamente las tasas de ether.fi Cash:
 - **Earn rate**: APY del vault "USD" en https://www.ether.fi/app/cash/earn (página pública, sin login)
 - **Borrow rate**: tasa de interés del préstamo contra el colateral. La app (`/cash/safe`) solo la muestra logueado con wallet, así que en cambio se lee del [artículo público del Help Center](https://help.ether.fi/en/articles/326983-understanding-your-cash-card-borrow-mode-vs-direct-pay-mode) que la documenta como una tasa fija ("Annual interest rate: 4% APY")
 
-Si el spread (`earn - borrow`) cae por debajo de un umbral (default `0.25`), envía un email de alerta. Si alguna de las dos páginas no se puede leer (por ejemplo porque ether.fi cambió el diseño o el texto del vault/artículo), también avisa por email en vez de fallar en silencio.
+Si el spread (`earn - borrow`) cae por debajo de un umbral (default `0.25`), envía un email de alerta. Si alguna de las dos páginas no se puede leer, reintenta hasta 3 veces (con 20s de espera entre intento e intento) antes de avisar por email — así un hipo de red transitorio no dispara una alerta falsa. Si después de los reintentos sigue sin poder leerla (por ejemplo porque ether.fi cambió el diseño), ahí sí avisa por email en vez de fallar en silencio.
 
 Cada chequeo exitoso se guarda en `data/history.json` (local, no se commitea). Los domingos, además del chequeo normal, se envía un email con el resumen de earn/borrow/spread de los últimos 7 días.
 

@@ -15,20 +15,51 @@ const BORROW_URL =
   'https://help.ether.fi/en/articles/326983-understanding-your-cash-card-borrow-mode-vs-direct-pay-mode';
 const SPREAD_THRESHOLD = parseFloat(process.env.SPREAD_THRESHOLD || '0.25');
 
+// A single transient hiccup (a Wi-Fi blip, a slow DNS lookup, ether.fi being
+// briefly slow) shouldn't page the user — retry a few times, spaced out,
+// before treating it as a real failure worth alerting about.
+async function withRetries(fn, { attempts = 3, delayMs = 20000, label } = {}) {
+  let lastErr;
+  for (let i = 1; i <= attempts; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      console.error(`[${label}] intento ${i}/${attempts} falló: ${err.message}`);
+      if (i < attempts) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+  }
+  throw lastErr;
+}
+
 async function main() {
   let earnRate;
   let borrowRate;
 
-  try {
-    [earnRate, borrowRate] = await Promise.all([
-      scrapeRate(EARN_URL, { label: 'earn', nearText: EARN_VAULT_PATTERN }),
-      scrapeRate(BORROW_URL, { label: 'borrow', nearText: 'annual interest rate' }),
-    ]);
-  } catch (err) {
-    console.error('Falló la extracción de tasas:', err.message);
+  const [earnResult, borrowResult] = await Promise.allSettled([
+    withRetries(() => scrapeRate(EARN_URL, { label: 'earn', nearText: EARN_VAULT_PATTERN }), { label: 'earn' }),
+    withRetries(() => scrapeRate(BORROW_URL, { label: 'borrow', nearText: 'annual interest rate' }), { label: 'borrow' }),
+  ]);
+
+  const failures = [];
+  if (earnResult.status === 'fulfilled') {
+    earnRate = earnResult.value;
+  } else {
+    failures.push(`earn (${EARN_URL}): ${earnResult.reason.message}`);
+  }
+  if (borrowResult.status === 'fulfilled') {
+    borrowRate = borrowResult.value;
+  } else {
+    failures.push(`borrow (${BORROW_URL}): ${borrowResult.reason.message}`);
+  }
+
+  if (failures.length > 0) {
+    console.error('Falló la extracción de tasas:', failures.join(' | '));
     await sendAlertEmail({
       subject: '⚠️ etherfi-rates-bot no pudo leer las tasas',
-      text: `El bot no pudo extraer alguna de las tasas desde ether.fi.\n\nError: ${err.message}\n\nRevisar si cambió el diseño de las páginas:\n- ${EARN_URL}\n- ${BORROW_URL}`,
+      text: `El bot no pudo extraer alguna de las tasas desde ether.fi (tras reintentos).\n\n${failures.join('\n')}\n\nRevisar si cambió el diseño de las páginas.`,
     });
     process.exitCode = 1;
     return;
