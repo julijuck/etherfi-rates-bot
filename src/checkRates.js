@@ -9,10 +9,13 @@ const EARN_URL = 'https://www.ether.fi/app/cash/earn';
 // deposits). Must not match the "USD RWAs" card, which is a different,
 // unrelated vault that also contains the substring "USD".
 const EARN_VAULT_PATTERN = /\bUSD\b(?!\s*RWAs)/i;
-// The app only shows the borrow rate once a wallet is connected, but
-// ether.fi publishes it as a fixed, public number in their help center.
-const BORROW_URL =
-  'https://help.ether.fi/en/articles/326983-understanding-your-cash-card-borrow-mode-vs-direct-pay-mode';
+// Borrow used to be a fixed 4% documented in a help article, but ether.fi
+// switched it to a dynamic, pool-driven rate shown on this app page. It's
+// public (no login needed) and the same rate for everyone.
+const BORROW_URL = 'https://www.ether.fi/app/cash/borrow';
+// \bUSD\b won't match inside "USDC" (no word boundary between D and C),
+// so it shouldn't get confused by the ticker subtitle shown next to the row.
+const BORROW_VAULT_PATTERN = /\bUSD\b/i;
 const SPREAD_THRESHOLD = parseFloat(process.env.SPREAD_THRESHOLD || '0.25');
 
 // A single transient hiccup (a Wi-Fi blip, a slow DNS lookup, ether.fi being
@@ -40,7 +43,7 @@ async function main() {
 
   const [earnResult, borrowResult] = await Promise.allSettled([
     withRetries(() => scrapeRate(EARN_URL, { label: 'earn', nearText: EARN_VAULT_PATTERN }), { label: 'earn' }),
-    withRetries(() => scrapeRate(BORROW_URL, { label: 'borrow', nearText: 'annual interest rate' }), { label: 'borrow' }),
+    withRetries(() => scrapeRate(BORROW_URL, { label: 'borrow', nearText: BORROW_VAULT_PATTERN }), { label: 'borrow' }),
   ]);
 
   const failures = [];

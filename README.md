@@ -3,7 +3,7 @@
 Bot que chequea diariamente las tasas de ether.fi Cash:
 
 - **Earn rate**: APY del vault "USD" en https://www.ether.fi/app/cash/earn (página pública, sin login)
-- **Borrow rate**: tasa de interés del préstamo contra el colateral. La app (`/cash/safe`) solo la muestra logueado con wallet, así que en cambio se lee del [artículo público del Help Center](https://help.ether.fi/en/articles/326983-understanding-your-cash-card-borrow-mode-vs-direct-pay-mode) que la documenta como una tasa fija ("Annual interest rate: 4% APY")
+- **Borrow rate**: APY de la fila "USD" en https://www.ether.fi/app/cash/borrow (página pública, sin login). Antes era una tasa fija (4%) documentada en el Help Center, pero ether.fi la cambió a una tasa dinámica del pool, igual para todos los usuarios
 
 Si el spread (`earn - borrow`) cae por debajo de un umbral (default `0.25`), envía un email de alerta. Si alguna de las dos páginas no se puede leer, reintenta hasta 3 veces (con 20s de espera entre intento e intento) antes de avisar por email — así un hipo de red transitorio no dispara una alerta falsa. Si después de los reintentos sigue sin poder leerla (por ejemplo porque ether.fi cambió el diseño), ahí sí avisa por email en vez de fallar en silencio.
 
@@ -11,7 +11,7 @@ Cada chequeo exitoso se guarda en `data/history.json` (local, no se commitea). L
 
 Como ether.fi no expone una API pública estable para estas tasas, el bot usa [Playwright](https://playwright.dev/) para renderizar las páginas con un navegador headless y leer el porcentaje del texto visible, igual que lo haría una persona. La extracción busca el número que aparece después de un texto ancla (`nearText`, ej. el nombre del vault o "annual interest rate") para evitar confundirse con otros porcentajes de la misma página.
 
-Si en el futuro cambiás de vault (hoy es "USD"), actualizá `EARN_VAULT_PATTERN` en `src/checkRates.js`.
+Si en el futuro cambiás de vault de earn (hoy es "USD"), actualizá `EARN_VAULT_PATTERN` en `src/checkRates.js`. Lo mismo para el borrow con `BORROW_VAULT_PATTERN` si cambia la moneda del préstamo.
 
 ## ⚠️ Por qué corre localmente y no en GitHub Actions
 
