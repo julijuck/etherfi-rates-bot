@@ -6,7 +6,8 @@
   "type": "commonjs",
   "main": "src/checkRates.js",
   "scripts": {
-    "check": "node src/checkRates.js"
+    "check": "node src/checkRates.js",
+    "test": "node --test test/*.test.js"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
