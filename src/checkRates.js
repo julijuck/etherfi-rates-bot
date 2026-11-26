@@ -1,9 +1,10 @@
 require('dotenv').config();
 const { scrapeRate } = require('./scrapeRate');
+const { fetchEarnRates } = require('./fetchEarnRates');
 const { sendAlertEmail } = require('./sendAlertEmail');
 const { appendHistory, lastNDays } = require('./history');
 const { formatWeeklySummary } = require('./weeklySummary');
-const { EARN_URL, EARN_VAULT_PATTERN, BORROW_URL, BORROW_VAULT_PATTERN } = require('./rateSources');
+const { EARN_URL, EARN_VAULTS, BORROW_URL, BORROW_VAULT_PATTERN } = require('./rateSources');
 
 const SPREAD_THRESHOLD = parseFloat(process.env.SPREAD_THRESHOLD || '0.25');
 
@@ -27,17 +28,17 @@ async function withRetries(fn, { attempts = 3, delayMs = 20000, label } = {}) {
 }
 
 async function main() {
-  let earnRate;
+  let earnRates;
   let borrowRate;
 
   const [earnResult, borrowResult] = await Promise.allSettled([
-    withRetries(() => scrapeRate(EARN_URL, { label: 'earn', nearText: EARN_VAULT_PATTERN }), { label: 'earn' }),
+    withRetries(() => fetchEarnRates({ label: 'earn' }), { label: 'earn' }),
     withRetries(() => scrapeRate(BORROW_URL, { label: 'borrow', nearText: BORROW_VAULT_PATTERN }), { label: 'borrow' }),
   ]);
 
   const failures = [];
   if (earnResult.status === 'fulfilled') {
-    earnRate = earnResult.value;
+    earnRates = earnResult.value;
   } else {
     failures.push(`earn (${EARN_URL}): ${earnResult.reason.message}`);
   }
@@ -57,30 +58,46 @@ async function main() {
     return;
   }
 
-  const spread = earnRate - borrowRate;
+  const spreads = {};
+  for (const v of EARN_VAULTS) {
+    spreads[v.key] = earnRates[v.key] - borrowRate;
+  }
 
-  console.log(`Earn rate:   ${earnRate}%`);
+  const rows = EARN_VAULTS.map(
+    (v) =>
+      `${v.name.padEnd(9)} earn ${earnRates[v.key].toFixed(2)}%  spread ${spreads[v.key] >= 0 ? '+' : ''}${spreads[v.key].toFixed(2)}%`
+  );
+
   console.log(`Borrow rate: ${borrowRate}%`);
-  console.log(`Spread:      ${spread.toFixed(2)}%`);
+  rows.forEach((r) => console.log(r));
   console.log(`Umbral:      ${SPREAD_THRESHOLD}%`);
 
+  // earnRate/spread keep pointing at the plain "USD" vault so records written
+  // before multi-vault support stay comparable; earnRates holds all vaults.
+  const mainKey = EARN_VAULTS[0].key;
   const history = appendHistory({
     timestamp: new Date().toISOString(),
-    earnRate,
+    earnRate: earnRates[mainKey],
     borrowRate,
-    spread,
+    spread: spreads[mainKey],
+    earnRates,
   });
 
-  if (spread < SPREAD_THRESHOLD) {
-    const subject =
-      spread < 0
-        ? '🚨 ether.fi Cash: el préstamo ahora es más caro que lo que ganás'
-        : '⚠️ ether.fi Cash: el spread de tasas se está achicando';
+  const belowThreshold = EARN_VAULTS.filter((v) => spreads[v.key] < SPREAD_THRESHOLD);
+  if (belowThreshold.length > 0) {
+    const anyNegative = belowThreshold.some((v) => spreads[v.key] < 0);
+    const names = belowThreshold.map((v) => v.name).join(', ');
+    const subject = anyNegative
+      ? `🚨 ether.fi Cash: el préstamo ahora es más caro que lo que ganás (${names})`
+      : `⚠️ ether.fi Cash: el spread de tasas se está achicando (${names})`;
 
-    const text = `Earn rate (colateral):  ${earnRate}%
-Borrow rate (préstamo): ${borrowRate}%
-Spread (earn - borrow): ${spread.toFixed(2)}%
+    const text = `Borrow rate (préstamo): ${borrowRate}%
 Umbral configurado:     ${SPREAD_THRESHOLD}%
+
+Vault      earn (colateral) y spread (earn - borrow):
+${rows.join('\n')}
+
+Por debajo del umbral: ${names}
 
 ${EARN_URL}
 ${BORROW_URL}`;

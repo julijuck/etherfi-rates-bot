@@ -2,20 +2,23 @@
 
 Bot que chequea diariamente las tasas de ether.fi Cash:
 
-- **Earn rate**: APY del vault "USD" en https://www.ether.fi/app/cash/earn (página pública, sin login)
+- **Earn rates**: APY de los tres vaults en USD de https://www.ether.fi/app/cash/earn (página pública, sin login): **USD**, **USD Bold** y **USD RWAs**
 - **Borrow rate**: APY de la fila "USD" en https://www.ether.fi/app/cash/borrow (página pública, sin login). Antes era una tasa fija (4%) documentada en el Help Center, pero ether.fi la cambió a una tasa dinámica del pool, igual para todos los usuarios
 
-Si el spread (`earn - borrow`) cae por debajo de un umbral (default `0.25`), envía un email de alerta. Si alguna de las dos páginas no se puede leer, reintenta hasta 3 veces (con 20s de espera entre intento e intento) antes de avisar por email — así un hipo de red transitorio no dispara una alerta falsa. Si después de los reintentos sigue sin poder leerla (por ejemplo porque ether.fi cambió el diseño), ahí sí avisa por email en vez de fallar en silencio.
+Para cada vault se calcula el spread (`earn - borrow`). Si el de cualquiera de los tres cae por debajo de un umbral (default `0.25`), envía un email de alerta que dice cuál o cuáles quedaron por debajo. Si alguna de las dos páginas no se puede leer, reintenta hasta 3 veces (con 20s de espera entre intento e intento) antes de avisar por email, así un hipo de red transitorio no dispara una alerta falsa. Si después de los reintentos sigue sin poder leerla (por ejemplo porque ether.fi cambió el diseño), ahí sí avisa por email en vez de fallar en silencio.
 
-Cada chequeo exitoso se guarda en `data/history.json` (local, no se commitea). Los domingos, además del chequeo normal, se envía un email con el resumen de earn/borrow/spread de los últimos 7 días.
+Cada chequeo exitoso se guarda en `data/history.json` (local, no se commitea). Los domingos, además del chequeo normal, se envía un email con el resumen de los últimos 7 días: borrow y earn de cada vault por día, y el spread promedio, mínimo y máximo de cada vault. Los registros viejos (de antes de que el bot leyera los tres vaults) solo tienen el vault USD; en el resumen los otros dos aparecen como `-` esos días.
 
-Como ether.fi no expone una API pública estable para estas tasas, el bot usa [Playwright](https://playwright.dev/) para renderizar las páginas con un navegador headless y leer el porcentaje del texto visible, igual que lo haría una persona. La extracción busca el número que aparece después de un texto ancla (`nearText`, ej. el nombre del vault o "annual interest rate") para evitar confundirse con otros porcentajes de la misma página.
+El bot usa [Playwright](https://playwright.dev/) para abrir las páginas con un navegador headless, igual que lo haría una persona:
 
-Si en el futuro cambiás de vault de earn (hoy es "USD"), actualizá `EARN_VAULT_PATTERN` en `src/checkRates.js`. Lo mismo para el borrow con `BORROW_VAULT_PATTERN` si cambia la moneda del préstamo.
+- **Earn**: la página `/cash/earn` arma sus tarjetas con un JSON que pide a `/app/cash/api/markets/overview` (con el país y la región que detecta de tu IP). El bot abre la página y lee esa misma respuesta, buscando cada vault por su id interno (`liquid-usd`, `liquid-defi` para Bold, `liquid-rwa` para RWAs). También verifica que el nombre de la tarjeta siga siendo el esperado, que el vault esté `live` y que el APY sea un número razonable; si algo no cuadra, falla con un mensaje claro en vez de reportar una tasa equivocada. Se pasó a esto porque las tres tarjetas dicen "USD" y leerlas por texto era fácil de confundir. Es un endpoint interno de ether.fi (no una API pública documentada), así que puede cambiar.
+- **Borrow**: lee el porcentaje visible que aparece después de un texto ancla (`BORROW_VAULT_PATTERN`) para no confundirse con otros porcentajes de la página.
+
+Si en el futuro querés agregar o sacar vaults de earn, editá `EARN_VAULTS` en `src/rateSources.js`. El primero de la lista es el que se guarda también como `earnRate` en el historial. Para el borrow, `BORROW_VAULT_PATTERN` si cambia la moneda del préstamo.
 
 ## ⚠️ Por qué corre localmente y no en GitHub Actions
 
-El vault "USD" (tu posición real, ~5,10% hoy) solo aparece si la IP que visita la página no está geo-restringida. Los runners de GitHub Actions salen desde datacenters de EE.UU., y desde ahí ether.fi muestra en su lugar un vault distinto ("Reserve", con una tasa más baja) — el mismo mecanismo que bloquea otros vaults con el cartel "Not available in your region". Como no hay forma de arreglar esto ajustando el scraper, el chequeo real corre en tu propia Mac (con IP de Argentina), programado con `launchd`.
+El vault "USD" (tu posición real, ~5,10% hoy) solo aparece si la IP que visita la página no está geo-restringida. Los runners de GitHub Actions salen desde datacenters de EE.UU., y desde ahí ether.fi muestra en su lugar un vault distinto ("Reserve", con una tasa más baja), por el mismo mecanismo que bloquea otros vaults con el cartel "Not available in your region". Como no hay forma de arreglar esto ajustando el scraper, el chequeo real corre en tu propia Mac (con IP de Argentina), programado con `launchd`.
 
 El workflow de GitHub Actions (`.github/workflows/check-rates.yml`) se dejó solo para debugging manual (`workflow_dispatch`), no corre automáticamente.
 
@@ -50,6 +53,12 @@ Para desinstalarlo: `./scripts/uninstall-macos.sh`
 
 ```bash
 npm run check
+```
+
+Tests (no necesitan red ni navegador; usan una respuesta real de ether.fi guardada en `test/`):
+
+```bash
+npm test
 ```
 
 Para forzar el envío de un email de prueba, bajar el umbral en `.env` (o pasarlo inline):
