@@ -18,7 +18,7 @@ Si en el futuro querés agregar o sacar vaults de earn, editá `EARN_VAULTS` en 
 
 ## ⚠️ Por qué corre localmente y no en GitHub Actions
 
-Los vaults en USD (USD, USD Bold y USD RWAs) solo aparecen si la IP que visita la página no está geo-restringida. Los runners de GitHub Actions salen desde datacenters de EE.UU., y desde ahí ether.fi muestra en su lugar un vault distinto ("Reserve", con una tasa más baja), por el mismo mecanismo que bloquea otros vaults con el cartel "Not available in your region". Como no hay forma de arreglar esto ajustando el scraper, el chequeo real corre en tu propia Mac (con IP de Argentina), programado con `launchd`.
+El vault "USD" (tu posición real, ~5,10% hoy) solo aparece si la IP que visita la página no está geo-restringida. Los runners de GitHub Actions salen desde datacenters de EE.UU., y desde ahí ether.fi muestra en su lugar un vault distinto ("Reserve", con una tasa más baja), por el mismo mecanismo que bloquea otros vaults con el cartel "Not available in your region". Como no hay forma de arreglar esto ajustando el scraper, el chequeo real corre en tu propia Mac (con IP de Argentina), programado con `launchd`.
 
 El workflow de GitHub Actions (`.github/workflows/check-rates.yml`) se dejó solo para debugging manual (`workflow_dispatch`), no corre automáticamente.
 
